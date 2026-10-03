@@ -9,7 +9,7 @@ $stats=[ordered]@{
  QingjianWords=$lexicon.QingjianWords;PersonalWords=$lexicon.PersonalWords
  VocabularyOnlyWords=$lexicon.VocabularyOnlyWords
  TranslatedWords=$lexicon.Meanings.Count;TotalWords=$lexicon.Words.Count
- Priority=@('Personal','Qingjian','CC-CEDICT')
+ Priority=@('Qingjian')
 }
 $json=$stats | ConvertTo-Json
 [IO.File]::WriteAllText((Join-Path $data 'wordlist-stats.json'),$json,[Text.UTF8Encoding]::new($false))

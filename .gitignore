@@ -5,3 +5,9 @@ data/*.gz
 data/*.tmp
 data/wordlist.txt
 data/wordlist-stats.json
+.venv/
+models/
+__pycache__/
+test-results/live/
+test-results/*.json
+*-normalized.png

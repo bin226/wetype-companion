@@ -1,58 +1,53 @@
 # 微信输入法本地译词伴侣
 
-项目目录：`D:\User\My Files\Projects\wetype-companion`。Git 主分支为 `main`，没有配置远程仓库。旧聊天目录保留作备份，后续开发以本目录为准。
+项目：`D:\User\My Files\Projects\wetype-companion`；Git 主分支 `main`，未配置远程仓库。
 
-## 使用
+## 当前版本
 
-双击 `Start.vbs`，加载本地词典后在通知区显示信息图标。右键图标 → Exit 退出。未设置开机启动。
+按用户要求，运行时**只使用青简英文词表**，共 232,213 个词条。CC-CEDICT、个人释义及个人词汇文件保留供后续实验，但默认不加载。`Lookup.ps1` 与 `Build-Wordlist.ps1` 也使用青简词表。
 
-识别微信输入法当前绿色高亮候选，查询完整词语，在候选栏旁只显示英文释义。浮窗不抢键盘焦点，鼠标可穿透；候选栏消失或查不到释义时隐藏。适配前次验证的 Windows 微信输入法 2.1.4.6 默认绿色样式，其他主题与版本需实测。
+默认识别已切换为 **RapidOCR 3.9.2 / PP-OCRv5 mobile / ONNX Runtime CPU**。模型在独立 Python 环境中常驻，识别任务在子进程执行。只识别高亮候选的文字行，省略文本检测及方向分类；先裁剪文字、转换成白底黑字，再识别。当前置信度低于 0.80 时隐藏提示；这个阈值不是正确率保证。
 
-约 140 毫秒轮询，画面连续两次稳定后识别。首次 OCR 未命中时反色重试，并归一化全角数字和空格。`ocr-corrections.tsv` 保留已验证的“穹折→弯折”规则，仅在原识别词没有释义时应用。释义区域最大宽度 680 像素，长释义可能截断。
+双击 `Start.vbs` 启动，右键托盘信息图标 → Exit 退出。浮窗仅显示英文释义，不接收键盘焦点，鼠标可穿透。没有开机启动。
 
-正常运行离线，截图仅在内存处理，不保存输入或日志。词典加载会增加启动时间。OCR 错字也可能恰好命中词表，仍需继续优化识别。
+约 70 毫秒轮询、连续两帧稳定后提交识别。限制一个未完成请求，按窗口、图像指纹及版本丢弃过期结果，保存最多 256 个图像结果缓存；候选关闭时隐藏。缓存随程序退出清除。默认绿色样式、纯汉字候选适配保持不变，其他主题与混合文本仍需后续测试。
 
-## 词典和词表
+正常运行只读取本地模型与词表，不联网、不保存截图或输入日志。模型缺失时报错，先执行安装脚本。OCR 仍可能把一个词读成另一个词，词表精确匹配不能发现所有误读。
 
-查询优先级：**个人释义 → 青简 → CC-CEDICT**。保持精确匹配，不自动把未知词替换成相似词。
+## 本次实测
 
-- `glossary-en.tsv`：青简英文释义，232,213 个词形。原修订见 `qingjian-revision.txt`，来源见 `glossary-source.md`，遵循 GPL-3.0-or-later。青简释义由模型生成，未保证全部准确。
-- `data/cedict.u8`：CC-CEDICT 原始离线中英词典，保留文件头，索引简体和繁体，合并重复词条，浮窗最多显示两条释义。数据遵循独立的 CC-BY-SA-4.0，来源和许可见 `data/README.md`；下载时间、记录数和 SHA-256 见 `data/cedict-source.json`。
-- `personal.tsv`：UTF-8，格式为 `中文词<Tab>英文释义`，Tab 为实际制表符。优先覆盖其他词典；已补充“微信输入法、候选词、开阀”。编辑后退出重启。
-- `personal-words.txt`：每行一个没有释义的词，仅加入词表，不显示译文。
-- `data/wordlist.txt`：可重新生成的合并、去重、排序词表，用于后续识别评估；没有词频。程序内也维护同一词汇集合。
+同一批 **10 张真实候选截图**，原 Windows 流程正确输出 5/10，新流程 10/10。“速度”在原流程中为空，新流程识别为“速度”，现场显示 `n. speed`；“微信、违心”现场显示释义。已验证切换候选、Esc 隐藏、不抢记事本焦点；连续输入时记录到过期结果被丢弃。
 
-当前快照有 125,173 条 CC-CEDICT 原始记录，合并后共 365,073 个可查词形。这是词形数量，不是 OCR 准确率或常用词覆盖率。增大词表本身不会提高 Windows OCR 的识别率。
+热态处理时间：原流程各图中位数平均约 9.1 毫秒，新流程约 16.6 毫秒。新方案在这批样本中更准确，但不是更快的模型；异步处理和更短稳定等待改善了响应流程。这些数字不包括完整截图、界面轮询、查词、显示和启动。
 
-合并词表也包含数字和中英混合词形，`Lookup.ps1` 可查询它们；目前候选 OCR 仍只接受纯汉字词语，混合词的浮窗识别需要后续适配。
+样本量有限，未覆盖所有应用、缩放、主题和长句。详见 `test-results/recognition-comparison.md`。测试截图及人工核对标签在 `test-fixtures/live-v1`，五次重复仅用于计时，不计为五个独立正确率样本。
 
-本项目源代码使用 GPL-3.0-or-later，见 `LICENSE`。各数据源保留原有许可；分发合并词表需保留其来源与许可信息。
+## 安装与开发
 
-## 开发命令
-
-在项目目录使用 Windows PowerShell 5.1（脚本保存为 UTF-8 BOM）：
+当前机器的 `.venv` 和模型已安装；它们不纳入 Git。新机器需 Python 3.12：
 
 ```powershell
-# 导出词表和统计（派生文件不纳入 Git）
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Build-Wordlist.ps1
-# 查看释义、来源和是否在词表中
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& '.\Lookup.ps1' -Word '微信','违心','弯折','开阀'"
-# 多来源查词测试
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Setup-Ocr.ps1 -Python 'C:\path\to\python.exe'
+# 下载缓慢时可指定镜像
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Setup-Ocr.ps1 -Python 'C:\path\to\python.exe' -IndexUrl 'https://pypi.tuna.tsinghua.edu.cn/simple'
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Test-Lexicon.ps1
-# 主动联网更新词典；下载或内容校验失败保留旧词典
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-Cedict.ps1
-# 离线截图 OCR 验证
-powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\companion.ps1 -TestImage .\test-fixtures\弯折.png
-# 限时运行并记录诊断；记录含识别文本，仅调试时启用
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Build-Wordlist.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& '.\Lookup.ps1' -Word '速度','微信','违心','弯折'"
+# 单张图，默认新引擎
+powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\companion.ps1 -TestImage .\test-fixtures\live-v1\速度.png
+# 保留原 Windows 流程用于回退或对照
+powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\companion.ps1 -Engine Windows -TestImage .\test-fixtures\live-v1\速度.png -NoCorrections
+# 重跑同批评估；先运行 Windows 脚本导出归一化图片
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Evaluate-WindowsOcr.ps1
+.\.venv\Scripts\python.exe .\evaluate_rapid.py
+# 调试运行（含输入记录，只在主动调试时启用）
 powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\companion.ps1 -Diagnostics -RunSeconds 60
 ```
 
-`-Diagnostics` 写入 `live-results.jsonl`，包含 OCR 原文、尝试次数、查词来源、词表命中状态、耗时及焦点状态。`Status` 为 `matched`、`no-translation` 或 `ocr-empty`。这些状态帮助分析问题，但不能判断 OCR 是否把一个词误读成另一个已有词。正常启动不启用诊断。
+修改青简词表后退出重启。`ocr-corrections.tsv` 仅在 Windows 回退流程使用，新引擎不靠这张人工纠错表输出结果。`-Diagnostics` 写入 `live-results.jsonl`，包含原文、词语、置信度、识别时间、请求返回时间、焦点及过期结果丢弃；正常启动不启用。
 
-## 文件与后续开发
+## 数据与许可
 
-`Native.cs` 负责限定候选窗口、截图、绿色区域定位、图像预处理与浮窗；`companion.ps1` 负责 OCR 和生命周期；`Lexicon.cs` / `lexicon.ps1` 负责多来源词典与词表；`Start.vbs` 隐藏控制台启动。
+青简词表来源见 `glossary-source.md`，修订见 `qingjian-revision.txt`，遵循 GPL-3.0-or-later。释义由模型生成，未保证全部准确。本项目源码也以 GPL-3.0-or-later 提供，见 `LICENSE`。
 
-前次聊天已用记事本真实候选验证“开发”译文显示与不抢焦点；同字体测试图复现“弯折→穹折”，纠错后查到 `v. bend`。这些属于前次验证记录，本次词典合并并不能证明日常 OCR 准确率提升。
-
-下一步先收集可复现的实际候选截图和人工正确文本，建立 OCR 评估集，再比较中文语言选择、预处理和替代识别引擎。先测量识别准确率及延迟，再选择方案。
+RapidOCR / PP-OCR 模型的来源、版本和 SHA-256 见 `ocr-model-source.json`。上游项目与模型保留其许可，项目不将它们的许可改写为 GPL。CC-CEDICT 存档的署名与 CC-BY-SA-4.0 许可见 `data/README.md`。

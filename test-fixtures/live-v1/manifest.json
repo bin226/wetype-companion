@@ -1,0 +1,62 @@
+[
+  {
+    "File": "翻译.png",
+    "Expected": "翻译",
+    "Source": "Real WeType highlighted candidate captured in Notepad",
+    "Sha256": "B3917CB2F038F34E4DFA93F6101A96CA848D9C27280498781A58D2FE8E69B85B"
+  },
+  {
+    "File": "开发.png",
+    "Expected": "开发",
+    "Source": "Real WeType highlighted candidate captured in Notepad",
+    "Sha256": "DA30D0176440AD3749CCE11C0C2D7C1928492FBBBA7FEE9775DEF67F79B36210"
+  },
+  {
+    "File": "人工智能.png",
+    "Expected": "人工智能",
+    "Source": "Real WeType highlighted candidate captured in Notepad",
+    "Sha256": "110A253623B9927EB5433B3445BD849569EF367A6EB510125664F36381A0669F"
+  },
+  {
+    "File": "师姐.png",
+    "Expected": "师姐",
+    "Source": "Real WeType highlighted candidate captured in Notepad",
+    "Sha256": "3D58913DEDD612347DD7035D3862B272FD7511E3AE20EF489C16327A95C10903"
+  },
+  {
+    "File": "世界.png",
+    "Expected": "世界",
+    "Source": "Real WeType highlighted candidate captured in Notepad",
+    "Sha256": "A57FE0AC96482A81727AAF813A60D757B1921EFD3F647751D7EF69694DA3E432"
+  },
+  {
+    "File": "速度.png",
+    "Expected": "速度",
+    "Source": "Real WeType highlighted candidate captured in Notepad",
+    "Sha256": "52223B65565F1594F178274D9BD1F6D3B09B1819E99A1CCC3070D2308D8A95D3"
+  },
+  {
+    "File": "弯折.png",
+    "Expected": "弯折",
+    "Source": "Real WeType highlighted candidate captured in Notepad",
+    "Sha256": "AB3937C5C96C2A0DB8F553F9EE75D5AA2830FA74ECDB409AD7BB41E2EB805D97"
+  },
+  {
+    "File": "微信.png",
+    "Expected": "微信",
+    "Source": "Real WeType highlighted candidate captured in Notepad",
+    "Sha256": "5E1092B787A84FD7A375BA62531FC5B72F26A3B3F3F7176826748F10466C6BA4"
+  },
+  {
+    "File": "违心.png",
+    "Expected": "违心",
+    "Source": "Real WeType highlighted candidate captured in Notepad",
+    "Sha256": "FBC25CCE58C31DC6744C9615CF73EB40E25D8A6CC17E68A7582E1F6A0709C3C4"
+  },
+  {
+    "File": "学习.png",
+    "Expected": "学习",
+    "Source": "Real WeType highlighted candidate captured in Notepad",
+    "Sha256": "40F254667940995F803AB151954D40E75E5015BB7C0F7931233A22F99C3D51C3"
+  }
+]

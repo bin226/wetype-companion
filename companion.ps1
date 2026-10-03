@@ -1,4 +1,5 @@
-﻿param([string]$TestImage='', [int]$RunSeconds=0, [switch]$Diagnostics)
+﻿param([string]$TestImage='', [int]$RunSeconds=0, [switch]$Diagnostics, [ValidateSet('RapidOCR','Windows')][string]$Engine='RapidOCR', [switch]$NoCorrections)
+if($Engine -eq 'RapidOCR'){ & (Join-Path $PSScriptRoot 'companion-rapid.ps1') -TestImage $TestImage -RunSeconds $RunSeconds -Diagnostics:$Diagnostics; exit }
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Drawing,System.Windows.Forms,System.Runtime.WindowsRuntime
 Add-Type -Path (Join-Path $PSScriptRoot 'Native.cs') -ReferencedAssemblies System.Drawing,System.Windows.Forms
@@ -33,7 +34,7 @@ function Read-Word($Bitmap,$Box){
     $attempts+=$raw
     $word=($raw.Normalize([Text.NormalizationForm]::FormKC) -replace '\s','') -replace '^\d+[.、]?',''
     if($word -notmatch '^[\p{IsCJKUnifiedIdeographs}\p{IsCJKUnifiedIdeographsExtensionA}]{1,30}$'){$word=''}
-    if($word -and !$script:glossary.ContainsKey($word) -and $script:corrections.ContainsKey($word)){$word=$script:corrections[$word]}
+    if(!$NoCorrections -and $word -and !$script:glossary.ContainsKey($word) -and $script:corrections.ContainsKey($word)){$word=$script:corrections[$word]}
     if($word -and $script:glossary.ContainsKey($word)){$meaning=$script:glossary[$word];break}
    }finally{$mem.Dispose();if($pass -eq 1){$image.Dispose()}}
   }
