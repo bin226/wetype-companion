@@ -4,3 +4,4 @@
 *.md text
 *.tsv text
 *.png binary
+*.u8 -text

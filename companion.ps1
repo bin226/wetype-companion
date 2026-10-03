@@ -12,11 +12,9 @@ $script:awaitMethod=[System.WindowsRuntimeSystemExtensions].GetMethods() | Where
 function Await-WinRT($Operation,$ResultType){$task=$script:awaitMethod.MakeGenericMethod($ResultType).Invoke($null,@($Operation));$task.Wait();$task.Result}
 $script:engine=[Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
 if($null -eq $engine){throw 'Install a Chinese Windows OCR language pack first.'}
-$script:glossary=[Collections.Generic.Dictionary[string,string]]::new([StringComparer]::Ordinal)
-foreach($line in [IO.File]::ReadLines((Join-Path $PSScriptRoot 'glossary-en.tsv'),[Text.Encoding]::UTF8)){
- if($line.StartsWith('#')){continue};$cols=$line.Split("`t");if($cols.Length -ge 2){$script:glossary[$cols[0]]=($cols | Select-Object -Skip 1 -First 2)-join ' · '}
-}
-if(Test-Path (Join-Path $PSScriptRoot 'personal.tsv')){foreach($line in [IO.File]::ReadLines((Join-Path $PSScriptRoot 'personal.tsv'),[Text.Encoding]::UTF8)){$cols=$line.Split("`t");if($cols.Length -ge 2 -and !$line.StartsWith('#')){$script:glossary[$cols[0]]=$cols[1]}}}
+. (Join-Path $PSScriptRoot 'lexicon.ps1')
+$script:lexicon=Get-LocalLexicon
+$script:glossary=$script:lexicon.Meanings
 $script:corrections=[Collections.Generic.Dictionary[string,string]]::new([StringComparer]::Ordinal)
 if(Test-Path (Join-Path $PSScriptRoot 'ocr-corrections.tsv')){foreach($line in [IO.File]::ReadLines((Join-Path $PSScriptRoot 'ocr-corrections.tsv'),[Text.Encoding]::UTF8)){$cols=$line.Split("`t");if($cols.Length -ge 2 -and !$line.StartsWith('#')){$script:corrections[$cols[0]]=$cols[1]}}}
 function Read-Word($Bitmap,$Box){
@@ -39,7 +37,7 @@ function Read-Word($Bitmap,$Box){
     if($word -and $script:glossary.ContainsKey($word)){$meaning=$script:glossary[$word];break}
    }finally{$mem.Dispose();if($pass -eq 1){$image.Dispose()}}
   }
-  [pscustomobject]@{Raw=$attempts -join ' / ';Word=$word;Meaning=$meaning;Attempts=$attempts.Count}
+  [pscustomobject]@{Raw=$attempts -join ' / ';Word=$word;Meaning=$meaning;Attempts=$attempts.Count;Source=$script:lexicon.Source($word);InWordlist=$script:lexicon.Words.Contains($word);Status=$(if($meaning){'matched'}elseif($word){'no-translation'}else{'ocr-empty'})}
  }finally{$normalized.Dispose()}
 }
 if($TestImage){
@@ -70,7 +68,7 @@ $script:timer.add_Tick({
   if($hash -ne $script:lastHash){
    $watch=[Diagnostics.Stopwatch]::StartNew();$result=Read-Word $capture.Image $box
    $script:lastHash=$hash;$script:lastResult=$result
-   if($Diagnostics){[pscustomobject]@{Elapsed=$script:clock.Elapsed.TotalSeconds;Raw=$result.Raw;Attempts=$result.Attempts;Word=$result.Word;Meaning=$result.Meaning;Milliseconds=$watch.Elapsed.TotalMilliseconds;Foreground=[CandidateNative]::GetForegroundWindow().ToInt64()}|ConvertTo-Json -Compress|Add-Content -LiteralPath (Join-Path $PSScriptRoot 'live-results.jsonl') -Encoding UTF8}
+   if($Diagnostics){[pscustomobject]@{Elapsed=$script:clock.Elapsed.TotalSeconds;Raw=$result.Raw;Attempts=$result.Attempts;Word=$result.Word;Meaning=$result.Meaning;Source=$result.Source;InWordlist=$result.InWordlist;Status=$result.Status;Milliseconds=$watch.Elapsed.TotalMilliseconds;Foreground=[CandidateNative]::GetForegroundWindow().ToInt64()}|ConvertTo-Json -Compress|Add-Content -LiteralPath (Join-Path $PSScriptRoot 'live-results.jsonl') -Encoding UTF8}
   }
   $result=$script:lastResult
   if(!$result.Word -or !$result.Meaning){$script:hint.Hide();return}

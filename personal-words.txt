@@ -1,0 +1,2 @@
+# One word per line, for vocabulary without a verified translation.
+# Words here do not generate a translation or automatically correct OCR.

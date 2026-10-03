@@ -1,39 +1,58 @@
 # 微信输入法本地译词伴侣
 
-适用于本次验证的 Windows 微信输入法 2.1.4.6 默认绿色高亮候选样式。
+项目目录：`D:\User\My Files\Projects\wetype-companion`。Git 主分支为 `main`，没有配置远程仓库。旧聊天目录保留作备份，后续开发以本目录为准。
 
-## 启动与退出
+## 使用
 
-双击 `Start.vbs`。第一次启动约需数秒加载英文词表；任务栏通知区会出现信息图标。右键图标 → Exit 退出。未设置开机启动。
+双击 `Start.vbs`，加载本地词典后在通知区显示信息图标。右键图标 → Exit 退出。未设置开机启动。
 
-微信输入法候选栏显示时，程序识别当前绿色高亮候选（默认是首选词）。若词表中有释义，就在候选栏下方仅显示英文释义，不重复中文候选词；靠近屏幕下沿时显示在上方。翻页后跟随当前高亮候选。浮窗不接收键盘焦点，鼠标可穿透。
+识别微信输入法当前绿色高亮候选，查询完整词语，在候选栏旁只显示英文释义。浮窗不抢键盘焦点，鼠标可穿透；候选栏消失或查不到释义时隐藏。适配前次验证的 Windows 微信输入法 2.1.4.6 默认绿色样式，其他主题与版本需实测。
 
-采用约 140 毫秒轮询，需要画面连续两次稳定才识别，以减少逐键刷新时的闪烁。OCR 错字仍可能恰好命中词表，因此提示仅供辅助学习。
+约 140 毫秒轮询，画面连续两次稳定后识别。首次 OCR 未命中时反色重试，并归一化全角数字和空格。`ocr-corrections.tsv` 保留已验证的“穹折→弯折”规则，仅在原识别词没有释义时应用。释义区域最大宽度 680 像素，长释义可能截断。
 
-若首次 OCR 失败或词表没有命中，会用反色图片重试一次；同时归一化全角数字和空格。重试仍可能失败，不能保证识别所有候选。
+正常运行离线，截图仅在内存处理，不保存输入或日志。词典加载会增加启动时间。OCR 错字也可能恰好命中词表，仍需继续优化识别。
 
-`ocr-corrections.tsv` 可添加已验证的形近字纠错，一行 `OCR误读<Tab>正确词语`；仅当误读词不存在于释义表时使用。同字体测试图复现“弯折”被识别成“穹折”，已加入这一条纠错。测试图中的“微信、违心”能正确识别并查词，这不能代替实际候选栏的现场验证。
+## 词典和词表
 
-只显示本地词表中的完整匹配，无法识别或无释义时隐藏。仅支持默认绿色高亮样式；其他颜色、主题或新版输入法需要适配。词语较长时显示区域宽度上限为 680 像素，文字可能截断。
+查询优先级：**个人释义 → 青简 → CC-CEDICT**。保持精确匹配，不自动把未知词替换成相似词。
 
-## 数据和自定义
+- `glossary-en.tsv`：青简英文释义，232,213 个词形。原修订见 `qingjian-revision.txt`，来源见 `glossary-source.md`，遵循 GPL-3.0-or-later。青简释义由模型生成，未保证全部准确。
+- `data/cedict.u8`：CC-CEDICT 原始离线中英词典，保留文件头，索引简体和繁体，合并重复词条，浮窗最多显示两条释义。数据遵循独立的 CC-BY-SA-4.0，来源和许可见 `data/README.md`；下载时间、记录数和 SHA-256 见 `data/cedict-source.json`。
+- `personal.tsv`：UTF-8，格式为 `中文词<Tab>英文释义`，Tab 为实际制表符。优先覆盖其他词典；已补充“微信输入法、候选词、开阀”。编辑后退出重启。
+- `personal-words.txt`：每行一个没有释义的词，仅加入词表，不显示译文。
+- `data/wordlist.txt`：可重新生成的合并、去重、排序词表，用于后续识别评估；没有词频。程序内也维护同一词汇集合。
 
-运行过程离线，不需要 API key。截图在内存中处理，正常启动不保存截图、输入或日志。
+当前快照有 125,173 条 CC-CEDICT 原始记录，合并后共 365,073 个可查词形。这是词形数量，不是 OCR 准确率或常用词覆盖率。增大词表本身不会提高 Windows OCR 的识别率。
 
-本地英文词表来自青简项目的 `assets/glossary/glossary-en.tsv`，原始修订号见 `qingjian-revision.txt`，来源说明见 `glossary-source.md`，许可见 `LICENSE`（GPL-3.0-or-later）。本目录原型源代码也以 GPL-3.0-or-later 提供。词表由模型生成，未保证每条释义准确。
+合并词表也包含数字和中英混合词形，`Lookup.ps1` 可查询它们；目前候选 OCR 仍只接受纯汉字词语，混合词的浮窗识别需要后续适配。
 
-可创建 UTF-8 编码的 `personal.tsv` 来覆盖或添加释义，一行格式为 `中文词<Tab>英文释义`。修改后退出并重启。
+本项目源代码使用 GPL-3.0-or-later，见 `LICENSE`。各数据源保留原有许可；分发合并词表需保留其来源与许可信息。
 
-## 实现与验证
+## 开发命令
 
-- `Native.cs`：限定微信输入法进程和候选窗口；截图、检测绿色连通区域、归一化、定位不抢焦点的 WinForms 浮窗。
-- `companion.ps1`：Windows 自带中文 OCR、完整词表查询、稳定画面检测、托盘与生命周期。
-- `Start.vbs`：隐藏控制台启动。
+在项目目录使用 Windows PowerShell 5.1（脚本保存为 UTF-8 BOM）：
 
-命令行离线截图测试：使用 Windows PowerShell 5.1 运行 `companion.ps1 -TestImage <绝对图片路径>`，无需显示候选窗口。脚本使用 UTF-8 BOM，保证 PowerShell 5.1 正确读取。
+```powershell
+# 导出词表和统计（派生文件不纳入 Git）
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Build-Wordlist.ps1
+# 查看释义、来源和是否在词表中
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& '.\Lookup.ps1' -Word '微信','违心','弯折','开阀'"
+# 多来源查词测试
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Test-Lexicon.ps1
+# 主动联网更新词典；下载或内容校验失败保留旧词典
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-Cedict.ps1
+# 离线截图 OCR 验证
+powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\companion.ps1 -TestImage .\test-fixtures\弯折.png
+# 限时运行并记录诊断；记录含识别文本，仅调试时启用
+powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File .\companion.ps1 -Diagnostics -RunSeconds 60
+```
 
-已对前次捕获的单行截图自动找到绿色区域并识别“开发”，查询结果为 `v. develop · v. exploit`。本次预处理及 OCR 约 117 毫秒，不包含进程启动和词表加载。展开截图中的生僻字未识别成功，返回空词语。
+`-Diagnostics` 写入 `live-results.jsonl`，包含 OCR 原文、尝试次数、查词来源、词表命中状态、耗时及焦点状态。`Status` 为 `matched`、`no-translation` 或 `ocr-empty`。这些状态帮助分析问题，但不能判断 OCR 是否把一个词误读成另一个已有词。正常启动不启用诊断。
 
-现场验证：在记事本输入 `kaifa`，真实浮窗在候选栏下方显示“开发 v. develop · v. exploit”；显示前后前台窗口句柄均为 197574，未抢焦点。切换高亮到“开阀”时因无释义而隐藏，再切回“开发”时重新显示。实际画面见 `live-preview.png`。现场首次识别约 107 毫秒，之后重复识别约 5–6 毫秒；仍不包含稳定等待与词表加载。
+## 文件与后续开发
 
-开发调试可以加 `-Diagnostics`，会在本目录保存识别词语、释义、耗时和焦点状态到 `live-results.jsonl`。这不是正常启动选项。`-RunSeconds N` 可限制运行时长，默认一直运行到托盘退出。
+`Native.cs` 负责限定候选窗口、截图、绿色区域定位、图像预处理与浮窗；`companion.ps1` 负责 OCR 和生命周期；`Lexicon.cs` / `lexicon.ps1` 负责多来源词典与词表；`Start.vbs` 隐藏控制台启动。
+
+前次聊天已用记事本真实候选验证“开发”译文显示与不抢焦点；同字体测试图复现“弯折→穹折”，纠错后查到 `v. bend`。这些属于前次验证记录，本次词典合并并不能证明日常 OCR 准确率提升。
+
+下一步先收集可复现的实际候选截图和人工正确文本，建立 OCR 评估集，再比较中文语言选择、预处理和替代识别引擎。先测量识别准确率及延迟，再选择方案。
