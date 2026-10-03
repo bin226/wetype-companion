@@ -1,0 +1,7 @@
+live-results.jsonl
+live-preview.png
+*.log
+data/*.gz
+data/*.tmp
+data/wordlist.txt
+data/wordlist-stats.json
