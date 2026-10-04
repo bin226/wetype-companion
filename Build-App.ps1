@@ -55,4 +55,6 @@ if($Zip){
  $hash=(Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
  [IO.File]::WriteAllText(($archive+'.sha256'),($hash+'  '+[IO.Path]::GetFileName($archive)+"`n"),[Text.UTF8Encoding]::new($false))
 }
+# Robocopy uses 1-7 for successful copies; do not leak these to a CI caller.
+$global:LASTEXITCODE=0
 Write-Output "已生成：$output\WeTypeCompanion.exe"

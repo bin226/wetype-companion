@@ -11,6 +11,6 @@
 - 模型哈希符合 ocr-model-source.json；ZIP 哈希符合随包 SHA-256 文件。
 - ZIP 排除个人词库、配置、日志及旧备份；本地个人文件和词表备份仍保留。
 
-GitHub Actions 尚未在云端执行，需推送后查看实际运行结果。本轮未重新执行持续输入、长期内存或其他输入法主题/版本兼容性测试；本地测试通过不代表这些场景已验证。
+本记录为首次上传前的本地验证快照。GitHub 云端构建结果见 https://github.com/bin226/wetype-companion/actions 。本轮未重新执行持续输入、长期内存或其他输入法主题/版本兼容性测试；本地测试通过不代表这些场景已验证。
 
-当前未配置 Git 远程，未创建公开仓库、tag 或 Release。本轮没有提交现有功能修改；源码和发布准备文件保留在工作区供检查，个人示例文件删除已暂存。
+源码已提交并上传至公开仓库 https://github.com/bin226/wetype-companion 。Git 远程为 origin，主分支为 main；tag 和 Release 单独管理。个人示例词库仅在本地保留，当前提交不再跟踪。
