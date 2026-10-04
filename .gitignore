@@ -1,13 +1,36 @@
-live-results.jsonl
-live-preview.png
-*.log
-data/*.gz
-data/*.tmp
-data/wordlist.txt
-data/wordlist-stats.json
+# Local environments and runtime assets (distributed through Releases)
 .venv/
 models/
 __pycache__/
-test-results/live/
-test-results/*.json
+*.py[cod]
+dist/
+
+# Private dictionaries, settings, backups and diagnostics
+personal.tsv
+personal-words.txt
+settings.json
+custom.tsv
+*.bak
+*.tmp
+*.log
+.env
+.env.*
+!.env.example
+live-results.jsonl
+live-preview.png
 *-normalized.png
+
+# Downloaded/generated dictionary files
+data/*.gz
+data/wordlist.txt
+data/wordlist-stats.json
+
+# Keep written reports; exclude machine-specific test output
+test-results/*
+!test-results/*.md
+
+# Editors and OS metadata
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

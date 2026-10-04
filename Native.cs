@@ -26,6 +26,10 @@ public static class CandidateNative {
  [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h,out Rect r);
  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+ public static bool IsCurrentProcessForeground(){
+  uint id;GetWindowThreadProcessId(GetForegroundWindow(),out id);
+  using(var process=Process.GetCurrentProcess())return id==(uint)process.Id;
+ }
  [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);
  struct Rect {public int Left,Top,Right,Bottom;}
  public static void Position(Form f,int x,int y,int w,int h){SetWindowPos(f.Handle,new IntPtr(-1),x,y,w,h,0x0010);}
@@ -35,7 +39,7 @@ public static class CandidateNative {
    if(!IsWindowVisible(h)) return true;
    var s=new StringBuilder(128);GetWindowText(h,s,128);if(s.ToString()!="wetype_candidate")return true;
    uint id; GetWindowThreadProcessId(h,out id);
-   try{if(Process.GetProcessById((int)id).ProcessName!="wetype_renderer")return true;}catch{return true;}
+   try{using(var process=Process.GetProcessById((int)id)){if(process.ProcessName!="wetype_renderer")return true;}}catch{return true;}
    Rect r;if(!GetWindowRect(h,out r))return true;
    bounds=Rectangle.Intersect(Rectangle.FromLTRB(r.Left,r.Top,r.Right,r.Bottom),SystemInformation.VirtualScreen);
    if(bounds.Width<=0 || bounds.Height<=0 || bounds.Width>2400 || bounds.Height>1600)return true;
@@ -47,19 +51,37 @@ public static class CandidateNative {
  }
  static byte[] Pixels(Bitmap b){var d=b.LockBits(new Rectangle(0,0,b.Width,b.Height),ImageLockMode.ReadOnly,PixelFormat.Format32bppArgb);try{var a=new byte[d.Stride*b.Height];Marshal.Copy(d.Scan0,a,0,a.Length);return a;}finally{b.UnlockBits(d);}}
  static bool Green(byte[] a,int i){return a[i+1]>95 && a[i+2]<110 && a[i]>55 && a[i+1]-a[i+2]>55 && a[i+1]-a[i]>15;}
+ sealed class HighlightBuffers {
+  public readonly byte[] Pixels;public readonly bool[] Seen;public readonly Queue<int> Queue=new Queue<int>();
+  public HighlightBuffers(int count){Pixels=new byte[count*4];Seen=new bool[count];}
+ }
+ [ThreadStatic] static HighlightBuffers highlightBuffers;
  public static Rectangle Highlight(Bitmap b){
-  var a=Pixels(b);int w=b.Width,h=b.Height;var seen=new bool[w*h];Rectangle best=Rectangle.Empty;int score=0;
-  var q=new Queue<int>();
-  for(int k=0;k<seen.Length;k++){
+  int w=b.Width,h=b.Height,countPixels=w*h;
+  // Reuse ordinary candidate-sized frames without retaining a huge screenshot.
+  HighlightBuffers buffers;
+  if(countPixels<=262144){if(highlightBuffers==null || highlightBuffers.Seen.Length<countPixels)highlightBuffers=new HighlightBuffers(countPixels);buffers=highlightBuffers;}
+  else buffers=new HighlightBuffers(countPixels);
+  var a=buffers.Pixels;var seen=buffers.Seen;Array.Clear(seen,0,countPixels);var q=buffers.Queue;q.Clear();
+  var data=b.LockBits(new Rectangle(0,0,w,h),ImageLockMode.ReadOnly,PixelFormat.Format32bppArgb);
+  try{for(int y=0;y<h;y++)Marshal.Copy(IntPtr.Add(data.Scan0,y*data.Stride),a,y*w*4,w*4);}finally{b.UnlockBits(data);}
+  Rectangle best=Rectangle.Empty;int score=0;
+  for(int k=0;k<countPixels;k++){
    if(seen[k] || !Green(a,k*4))continue;
    seen[k]=true;q.Enqueue(k);int minX=w,maxX=0,minY=h,maxY=0,count=0;
    while(q.Count>0){int n=q.Dequeue(),x=n%w,y=n/w;count++;minX=Math.Min(minX,x);maxX=Math.Max(maxX,x);minY=Math.Min(minY,y);maxY=Math.Max(maxY,y);
-    int[] ns={x>0?n-1:-1,x<w-1?n+1:-1,y>0?n-w:-1,y<h-1?n+w:-1};foreach(int m in ns){if(m>=0&&!seen[m]&&Green(a,m*4)){seen[m]=true;q.Enqueue(m);}}
+    if(x>0) EnqueueGreen(n-1,a,seen,q);
+    if(x<w-1) EnqueueGreen(n+1,a,seen,q);
+    if(y>0) EnqueueGreen(n-w,a,seen,q);
+    if(y<h-1) EnqueueGreen(n+w,a,seen,q);
    }
    int rw=maxX-minX+1,rh=maxY-minY+1;
    if(count>400 && rw>=30 && rw<=900 && rh>=18 && rh<=160 && rw>rh && count>score){score=count;best=new Rectangle(minX,minY,rw,rh);}
   }
   return best;
+ }
+ static void EnqueueGreen(int pixel,byte[] pixels,bool[] seen,Queue<int> queue){
+  if(!seen[pixel] && Green(pixels,pixel*4)){seen[pixel]=true;queue.Enqueue(pixel);}
  }
  public static Bitmap Normalize(Bitmap source,Rectangle box){
   box.Inflate(3,3);box.Intersect(new Rectangle(0,0,source.Width,source.Height));

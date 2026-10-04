@@ -6,7 +6,7 @@ $data=Join-Path $PSScriptRoot 'data'
 $lexicon.ExportWords((Join-Path $data 'wordlist.txt'))
 $stats=[ordered]@{
  CedictEntries=$lexicon.CedictEntries;CedictWords=$lexicon.CedictWords
- QingjianWords=$lexicon.QingjianWords;PersonalWords=$lexicon.PersonalWords
+ QingjianWords=$lexicon.QingjianWords
  VocabularyOnlyWords=$lexicon.VocabularyOnlyWords
  TranslatedWords=$lexicon.Meanings.Count;TotalWords=$lexicon.Words.Count
  Priority=@('Qingjian')

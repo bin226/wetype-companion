@@ -1,0 +1,48 @@
+name: Windows build and regression
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Install local OCR dependencies and verify model
+        run: ./Setup-Ocr.ps1 -Python (Join-Path $env:pythonLocation 'python.exe')
+      - name: Build portable application
+        run: ./Build-App.ps1 -Zip
+      - name: Test dictionary behavior
+        run: ./Test-Lexicon.ps1
+      - name: Test native application and fixed OCR fixtures
+        run: ./Test-Native.ps1
+      - name: Save portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeTypeCompanion-win-x64
+          path: |
+            dist/WeTypeCompanion-win-x64.zip
+            dist/WeTypeCompanion-win-x64.zip.sha256
+          if-no-files-found: error
+      - name: Save regression diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-results
+          path: |
+            test-results/native-tests.txt
+            test-results/native-settings-ui-*.png
+          if-no-files-found: ignore

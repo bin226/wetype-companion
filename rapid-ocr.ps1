@@ -1,5 +1,6 @@
 ﻿function Start-RapidWorker {
  $python=Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
+ if(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'runtime\python.exe')){$python=Join-Path $PSScriptRoot 'runtime\python.exe'}
  if(!(Test-Path -LiteralPath $python)){throw 'Run Setup-Ocr.ps1 to install the project OCR environment.'}
  $info=[Diagnostics.ProcessStartInfo]::new()
  $info.FileName=$python;$info.Arguments='-u "'+(Join-Path $PSScriptRoot 'ocr_worker.py')+'"'

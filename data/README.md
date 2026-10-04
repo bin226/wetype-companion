@@ -1,6 +1,6 @@
 # Supplementary dictionary (archived, disabled by default)
 
-Runtime has been rolled back to Qingjian only. CC-CEDICT and personal sources are not loaded unless explicitly requested through Get-LocalLexicon -IncludeSupplementary for development experiments.
+The desktop UI can select Qingjian, CC-CEDICT and an imported custom TSV. Personal translations are no longer loaded. CLI defaults to Qingjian; Get-LocalLexicon -IncludeSupplementary adds CC-CEDICT and the development vocabulary-only word list.
 
 `cedict.u8` is an unmodified CC-CEDICT snapshot downloaded from MDBG. Original headers are retained. Traditional and simplified spellings are both indexed; repeated entries are combined into at most two definitions for the compact overlay.
 

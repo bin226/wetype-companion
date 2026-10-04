@@ -1,12 +1,13 @@
-﻿param([string]$TestImage='', [int]$RunSeconds=0, [switch]$Diagnostics)
+﻿param([string]$TestImage='', [int]$RunSeconds=0, [switch]$Diagnostics, [switch]$ShowSettings)
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Drawing,System.Windows.Forms
-Add-Type -Path (Join-Path $PSScriptRoot 'Native.cs') -ReferencedAssemblies System.Drawing,System.Windows.Forms
+if(-not ('CandidateNative' -as [type])){Add-Type -Path (Join-Path $PSScriptRoot 'Native.cs') -ReferencedAssemblies System.Drawing,System.Windows.Forms}
 [void][CandidateNative]::SetProcessDPIAware()
+[Windows.Forms.Application]::EnableVisualStyles()
 . (Join-Path $PSScriptRoot 'lexicon.ps1')
 . (Join-Path $PSScriptRoot 'rapid-ocr.ps1')
-$script:lexicon=Get-LocalLexicon
 if($TestImage){
+ $script:lexicon=Get-LocalLexicon
  $bitmap=[Drawing.Bitmap]::new([IO.Path]::GetFullPath($TestImage))
  try{
   $box=[CandidateNative]::Highlight($bitmap);if($box.IsEmpty){throw 'No candidate highlight found'}
@@ -20,18 +21,34 @@ if($TestImage){
  return
 }
 $script:mutex=[Threading.Mutex]::new($false,'Local\WeTypeLocalGlossCompanion')
-if(!$script:mutex.WaitOne(0,$false)){$script:mutex.Dispose();throw 'Companion is already running.'}
-try{Start-RapidWorker}catch{$script:mutex.ReleaseMutex();$script:mutex.Dispose();throw}
+if(!$script:mutex.WaitOne(0,$false)){
+ $script:mutex.Dispose()
+ try{$signal=[Threading.EventWaitHandle]::OpenExisting('Local\WeTypeCompanionOpenSettings');$signal.Set();$signal.Dispose();return}catch{throw '旧版伴侣正在运行，请先从旧托盘菜单退出。'}
+}
+try{
+ $script:openSettingsSignal=[Threading.EventWaitHandle]::new($false,[Threading.EventResetMode]::AutoReset,'Local\WeTypeCompanionOpenSettings')
+ . (Join-Path $PSScriptRoot 'settings.ps1')
+ try{$script:lexicon=Get-LocalLexicon -Configuration $script:configuration -DataDirectory $script:settingsDirectory}catch{
+  [void][Windows.Forms.MessageBox]::Show('所选词库无法加载，暂用默认青简词库。请在设置中修正。'+$_.Exception.Message,'译词伴侣')
+  $script:configuration=[pscustomobject]@{Qingjian=$true;Cedict=$false;Custom=$false};$script:lexicon=Get-LocalLexicon
+ }
+ Start-RapidWorker
+}catch{if($script:openSettingsSignal){$script:openSettingsSignal.Dispose()};$script:mutex.ReleaseMutex();$script:mutex.Dispose();throw}
 $script:hint=[HintWindow]::new()
 $script:label=[Windows.Forms.Label]::new();$script:label.Dock='Fill';$script:label.TextAlign='MiddleLeft'
 $script:label.Font=[Drawing.Font]::new('Microsoft YaHei UI',11);$script:hint.Controls.Add($script:label)
-$script:tray=[Windows.Forms.NotifyIcon]::new();$script:tray.Icon=[Drawing.SystemIcons]::Information
-$script:tray.Text='WeType PP-OCRv5';$script:tray.Visible=$true
-$menu=[Windows.Forms.ContextMenuStrip]::new();$exit=$menu.Items.Add('Exit')
+$script:tray=[Windows.Forms.NotifyIcon]::new();$script:trayIcon=[CompanionArtwork]::Create(32);$script:tray.Icon=$script:trayIcon
+$script:tray.Text='译词伴侣 · 正在运行';$script:tray.Visible=$true
+$menu=[Windows.Forms.ContextMenuStrip]::new();$open=$menu.Items.Add('打开设置')
+$open.add_Click({$script:settingsForm.Reveal()});$script:tray.add_DoubleClick({$script:settingsForm.Reveal()})
+$script:pauseMenu=$menu.Items.Add('暂停识别');$script:pauseMenu.add_Click({Switch-Recognition})
+[void]$menu.Items.Add([Windows.Forms.ToolStripSeparator]::new());$exit=$menu.Items.Add('退出')
 $exit.add_Click({[Windows.Forms.Application]::ExitThread()});$script:tray.ContextMenuStrip=$menu
 $script:clock=[Diagnostics.Stopwatch]::StartNew()
 $script:stableKey='';$script:version=0;$script:lastKey='';$script:lastResult=$null;$script:pending=$null
 $script:cache=[Collections.Generic.Dictionary[string,object]]::new()
+$script:paused=$false
+Initialize-SettingsUI
 function Reset-Candidate {
  if($script:stableKey){$script:version++}
  $script:stableKey='';$script:lastKey='';$script:lastResult=$null;$script:hint.Hide()
@@ -42,6 +59,8 @@ $script:timer.add_Tick({
  $capture=$null
  try{
   if($RunSeconds -gt 0 -and $script:clock.Elapsed.TotalSeconds -ge $RunSeconds){[Windows.Forms.Application]::ExitThread();return}
+  Poll-Settings
+  if($script:paused){$script:hint.Hide();return}
   $capture=[CandidateNative]::Capture()
   if($null -eq $capture){if($script:hint.Visible){Write-Diagnostic @{Hidden=$true}};Reset-Candidate;return}
   $box=[CandidateNative]::Highlight($capture.Image)
@@ -91,7 +110,14 @@ $script:timer.add_Tick({
   if($script:pending -and $script:pending.Watch.Elapsed.TotalSeconds -gt 3){[Windows.Forms.Application]::ExitThread()}
  }finally{if($capture){$capture.Dispose()}}
 })
-try{$script:timer.Start();[Windows.Forms.Application]::Run()}finally{
+# Dictionary parsing leaves large temporary maps and lists. Reclaim them once,
+# before polling starts; never force GC on the recognition path.
+[GC]::Collect()
+[GC]::WaitForPendingFinalizers()
+[GC]::Collect()
+try{$script:timer.Start();if($ShowSettings){$script:settingsForm.Reveal()};[Windows.Forms.Application]::Run()}finally{
  $script:timer.Dispose();$script:tray.Visible=$false;$script:tray.Dispose();$script:hint.Dispose()
  Stop-RapidWorker;$script:mutex.ReleaseMutex();$script:mutex.Dispose()
+ if($script:dictionaryUpdate){if(!$script:dictionaryUpdate.HasExited){$script:dictionaryUpdate.Kill()};$script:dictionaryUpdate.Dispose()}
+ $script:settingsForm.Dispose();$script:trayIcon.Dispose();$menu.Dispose();$script:openSettingsSignal.Dispose()
 }
